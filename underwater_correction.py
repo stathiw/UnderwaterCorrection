@@ -28,6 +28,7 @@ class UnderwaterCorrection:
         self.colour_corrected = self.img
         self.contrast_adjusted = self.img
         self.contast_value = 0
+        self.white_balance = [0, 0, 0]
         self.show_help = False
 
     def showEditWindow(self):
@@ -44,8 +45,16 @@ class UnderwaterCorrection:
         # Get pixel value on mouse click
         cv.setMouseCallback("Underwater Correction", self.mouseCallback)
 
-        # Create trackbar, fit to window
+        # Create contrast trackbar, fit to window
         cv.createTrackbar("Contrast", "Underwater Correction", 0, 100, self.adjustContrast)
+
+        # Create red, green, blue trackbars [0-255]
+        cv.createTrackbar("Red", "Underwater Correction", 50, 100, self.whiteBalanceRed)
+        cv.setTrackbarMin("Red", "Underwater Correction", 0)
+        cv.createTrackbar("Green", "Underwater Correction", 50, 100, self.whiteBalanceGreen)
+        cv.setTrackbarMin("Green", "Underwater Correction", 0)
+        cv.createTrackbar("Blue", "Underwater Correction", 50, 100, self.whiteBalanceBlue)
+        cv.setTrackbarMin("Blue", "Underwater Correction", 0)
 
         # Resize trackbar to width=800
         cv.resizeWindow("Underwater Correction", 1600, 600)
@@ -91,16 +100,22 @@ class UnderwaterCorrection:
     def resetWhiteBalance(self):
         self.colour_corrected = self.img
         self.adjustContrast(self.contrast_value)
+        self.white_balance = [50, 50, 50]
 
     def mouseCallback(self, event, x, y, flags, param):
         if event == cv.EVENT_LBUTTONDOWN:
             x = x - 800
             if x < 0:
                 x = 0
-            self.colour_corrected = self.whiteBalance(self.img[y, x])
+            # Get the pixel value
+            self.white_balance = self.samplePixel(self.img[y, x])
+            self.colour_corrected = self.whiteBalance(self.white_balance)
             self.adjustContrast(self.contrast_value)
+            cv.setTrackbarPos("Red", "Underwater Correction", int((self.white_balance[2] + 127) * 100 / 255))
+            cv.setTrackbarPos("Green", "Underwater Correction", int((self.white_balance[1] + 127) * 100 / 255))
+            cv.setTrackbarPos("Blue", "Underwater Correction", int((self.white_balance[0] + 127) * 100 / 255))
 
-    def whiteBalance(self, pixel):
+    def samplePixel(self, pixel):
         # Get mean value of pixel
         avg = pixel.mean()
 
@@ -108,6 +123,26 @@ class UnderwaterCorrection:
         diff = avg - pixel
         # Diff should be integer
         diff = diff.astype(int)
+
+        return diff
+
+    def whiteBalanceRed(self, x):
+        self.white_balance[2] = 255 * x / 100 - 127
+        self.colour_corrected = self.whiteBalance(self.white_balance)
+        self.adjustContrast(self.contrast_value)
+
+    def whiteBalanceGreen(self, x):
+        self.white_balance[1] = 255 * x / 100 - 127
+        self.colour_corrected = self.whiteBalance(self.white_balance)
+        self.adjustContrast(self.contrast_value)
+
+    def whiteBalanceBlue(self, x):
+        self.white_balance[0] = 255 * x / 100 - 127
+        self.colour_corrected = self.whiteBalance(self.white_balance)
+        self.adjustContrast(self.contrast_value)
+
+    def whiteBalance(self, diff):
+        self.white_balance = diff
 
         # Add the difference to each pixel
         corrected = self.img + diff
