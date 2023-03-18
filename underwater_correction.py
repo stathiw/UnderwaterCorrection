@@ -20,8 +20,10 @@ import sys
 import os
 
 class UnderwaterCorrection:
-    def __init__(self, img):
-        self.img = img
+    def __init__(self, img, folder):
+        self.img = cv.imread(img[0])
+        self.images = img
+        self.save_folder = folder
         # Resize so max width is 800, preserving aspect ratio
         self.img = cv.resize(self.img, (800, int(800 * self.img.shape[0] / self.img.shape[1])))
         self.corrected = self.img
@@ -81,6 +83,9 @@ class UnderwaterCorrection:
             if k == ord('u'):
                 self.resetWhiteBalance()
 
+            if k == ord('a'):
+                self.applyCorrection()
+
             # Sleep for 10ms
             cv.waitKey(10)
 
@@ -93,9 +98,24 @@ class UnderwaterCorrection:
             # Display text in window
             help_text = ["ESC   exit",
                          "h     show help",
-                         "u     undo white balance"]
+                         "u     undo white balance",
+                         "a     apply correction to all images"]
             for i, text in enumerate(help_text):
                 cv.putText(self.corrected, text, (20, 50 + 50 * i), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv.LINE_AA)
+
+    def applyCorrection(self):
+        for i, img in enumerate(self.images):
+            print("Applying correction to image ({}): {}".format(i, os.path.basename(img)))
+            self.img = cv.imread(img)
+            self.colour_corrected = self.img
+            self.contrast_adjusted = self.img
+            self.corrected = self.img
+
+            self.colour_corrected = self.whiteBalance(self.white_balance)
+            self.adjustContrast(self.contrast_value)
+            
+            # Save corrected image to save folder            
+            cv.imwrite(os.path.join(self.save_folder, os.path.basename(img)), self.corrected)
 
     def resetWhiteBalance(self):
         self.colour_corrected = self.img
@@ -163,17 +183,34 @@ class UnderwaterCorrection:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("Usage: python underwater_correction.py <image>")
         sys.exit(1)
 
-    img = cv.imread(sys.argv[1])
+    img_files = []
+    save_path = None
 
-    if img is None:
+    if len(sys.argv) == 3:
+        # Save path
+        save_path = sys.argv[2]
+    else:
+        save_path = os.path.dirname(sys.argv[1]) + "/corrected"
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+    if sys.argv[1].endswith(".jpg") or sys.argv[1].endswith(".png"):
+        img_files.append(cv.imread(sys.argv[1]))
+    else:
+        # Open directory and get all image files
+        for file in os.listdir(sys.argv[1]):
+            if file.endswith(".jpg") or file.endswith(".png"):
+                img_files.append(sys.argv[1] + "/" + file)
+
+    if img_files is None:
         print("Could not read the image.")
         sys.exit(1)
 
-    underwater = UnderwaterCorrection(img)
+    underwater = UnderwaterCorrection(img_files, save_path)
     underwater.showEditWindow()
 
     sys.exit(0)
