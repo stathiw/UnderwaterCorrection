@@ -30,6 +30,7 @@ class UnderwaterCorrection:
         self.colour_corrected = self.img
         self.contrast_adjusted = self.img
         self.contast_value = 0
+        self.brightness_value = 0
         self.white_balance = [0, 0, 0]
         self.show_help = False
 
@@ -47,6 +48,9 @@ class UnderwaterCorrection:
         # Get pixel value on mouse click
         cv.setMouseCallback("Underwater Correction", self.mouseCallback)
 
+        # Create brightness trackbar, fit to window
+        cv.createTrackbar("Brightness", "Underwater Correction", 0, 100, self.adjustBrightness)
+
         # Create contrast trackbar, fit to window
         cv.createTrackbar("Contrast", "Underwater Correction", 0, 100, self.adjustContrast)
 
@@ -63,7 +67,10 @@ class UnderwaterCorrection:
         
         while True:
             # Get the contrast value
-            self.contrast = cv.getTrackbarPos("Contrast", "Underwater Correction")
+            self.contrast_value = cv.getTrackbarPos("Contrast", "Underwater Correction")
+
+            # Get the brightness value
+            self.brightness_value = cv.getTrackbarPos("Brightness", "Underwater Correction")
 
             # Concatenate the images
             side_by_side = cv.hconcat([self.img, self.corrected])
@@ -179,7 +186,13 @@ class UnderwaterCorrection:
         alpha = 1.0 + (self.contrast_value / 100.0)
         beta = 127 * (1.0 - alpha)
         self.contrast = cv.convertScaleAbs(self.colour_corrected, alpha=alpha, beta=beta)
-        self.corrected = self.contrast
+        self.adjustBrightness(self.brightness_value)
+
+    def adjustBrightness(self, x):
+        self.brightness_value = x
+        # Apply brightness
+        self.brightness = cv.convertScaleAbs(self.contrast, alpha=1, beta=x)
+        self.corrected = self.brightness
 
 
 if __name__ == "__main__":
@@ -199,7 +212,7 @@ if __name__ == "__main__":
             os.makedirs(save_path)
 
     if sys.argv[1].endswith(".jpg") or sys.argv[1].endswith(".png"):
-        img_files.append(cv.imread(sys.argv[1]))
+        img_files.append(sys.argv[1])
     else:
         # Open directory and get all image files
         for file in os.listdir(sys.argv[1]):
